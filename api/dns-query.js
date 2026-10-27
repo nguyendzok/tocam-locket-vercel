@@ -22,11 +22,17 @@ async function handleDohRequest(req, res) {
         dnsRaw = Buffer.from(req.body, 'binary');
       } else if (req.rawBody) {
         dnsRaw = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(req.rawBody);
+      } else {
+        const chunks = [];
+        for await (const chunk of req) {
+          chunks.push(chunk);
+        }
+        if (chunks.length > 0) {
+          dnsRaw = Buffer.concat(chunks);
+        }
       }
     } else if (req.method === 'GET' && req.query.dns) {
-      let b64 = req.query.dns.replace(/-/g, '+').replace(/_/g, '/');
-      while (b64.length % 4) b64 += '=';
-      dnsRaw = Buffer.from(b64, 'base64');
+      dnsRaw = Buffer.from(req.query.dns, 'base64url');
     }
 
     if (!dnsRaw || dnsRaw.length === 0) {
