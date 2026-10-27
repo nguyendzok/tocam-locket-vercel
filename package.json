@@ -1,0 +1,18 @@
+{
+  "name": "tocam-locket-vercel",
+  "version": "2.0.0",
+  "description": "Tổ Cam Locket Gold Gateway - Auto Expiration & Dual DNS Engine (NextDNS + Vercel Serverless DoH)",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node --watch api/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dns-packet": "^5.6.1",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
