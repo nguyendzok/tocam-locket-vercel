@@ -107,4 +107,5 @@ async function handleDohRequest(req, res) {
   }
 }
 
-module.exports = { handleDohRequest };
+module.exports = handleDohRequest;
+module.exports.handleDohRequest = handleDohRequest;
