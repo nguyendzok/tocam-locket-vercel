@@ -4,7 +4,7 @@
  */
 
 const dnsPacket = require('dns-packet');
-const { isUserActive } = require('./store');
+const { isUserActive, getUser } = require('./store');
 
 const UPSTREAM_DOH = 'https://cloudflare-dns.com/dns-query';
 
@@ -51,9 +51,30 @@ async function handleDohRequest(req, res) {
     const isRevenueCat = queryName.includes('revenuecat.com');
 
     if (isRevenueCat) {
-      const user = username ? isUserActive(username) : true;
-      // Chặn nếu còn hạn, hoặc mặc định bảo vệ nếu chưa bị đánh dấu EXPIRED
-      if (user) {
+      const expQuery = req.query.exp;
+      let active = true;
+
+      // Kiểm tra thời hạn stateless từ query param (chuẩn Vercel Serverless)
+      if (expQuery && expQuery !== 'lifetime') {
+        const expTimestamp = parseInt(expQuery, 10);
+        if (!isNaN(expTimestamp)) {
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (nowSec >= expTimestamp) {
+            active = false; // Đã hết hạn -> Cho phép kết nối Apple để rụng Gold!
+          }
+        }
+      }
+
+      // Kiểm tra store nếu có lệnh thu hồi thủ công
+      if (username) {
+        const uRec = getUser(username);
+        if (uRec && uRec.status === 'EXPIRED') {
+          active = false;
+        }
+      }
+
+      // 1. Nếu tài khoản còn hạn sử dụng -> CHẶN NGAY (trả về 0.0.0.0 hoặc :: để giữ Gold)
+      if (active) {
         const answers = [];
         if (targetQuestion.type === 'A') {
           answers.push({
@@ -83,7 +104,7 @@ async function handleDohRequest(req, res) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.send(blockedResponse);
       }
-      // Nếu đã hết hạn sử dụng -> chuyển tiếp xuống dưới lấy IP thật để Locket rụng Gold
+      // 2. Nếu đã hết hạn sử dụng -> chuyển tiếp xuống dưới lấy IP thật để Locket rụng Gold!
     }
 
     // Chuyển tiếp truy vấn DNS upstream tới Cloudflare DoH (Đảm bảo 100% tốc độ mạng cho mọi app khác)

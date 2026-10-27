@@ -207,7 +207,13 @@ app.post('/api/activate', async (req, res) => {
   let nextdnsData = null;
   const host = req.get('host') || 'localhost:3000';
   const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-  const vercelDohUrl = `${protocol}://${host}/api/dns-query?u=${encodeURIComponent(cleanUser)}`;
+
+  let expParam = 'lifetime';
+  if (expiresAt && expiresAt !== 'LIFETIME') {
+    expParam = Math.floor(new Date(expiresAt).getTime() / 1000);
+  }
+
+  const vercelDohUrl = `${protocol}://${host}/api/dns-query?u=${encodeURIComponent(cleanUser)}&exp=${expParam}`;
 
   const selectedDns = dnsMode === 'nextdns' ? 'nextdns' : 'vercel_doh';
 
@@ -224,6 +230,7 @@ app.post('/api/activate', async (req, res) => {
     durationName,
     activatedAt: new Date().toISOString(),
     expiresAt,
+    expParam,
     dnsMode: selectedDns,
     nextdnsProfileId: nextdnsData?.profileId || null,
     nextdnsSetupUrl: nextdnsData?.setupUrl || null,
@@ -239,7 +246,7 @@ app.post('/api/activate', async (req, res) => {
     dns: {
       mode: selectedDns,
       vercelDohUrl,
-      mobileconfigUrl: `${protocol}://${host}/api/profile/download?u=${encodeURIComponent(cleanUser)}`,
+      mobileconfigUrl: `${protocol}://${host}/api/profile/download?u=${encodeURIComponent(cleanUser)}&exp=${expParam}`,
       androidDot: nextdnsData?.dotHost || null,
       iosSetupUrl: nextdnsData?.setupUrl || null
     }
@@ -251,9 +258,10 @@ app.post('/api/activate', async (req, res) => {
 // ============================================================
 app.all(['/api/profile/download', '/api/locket/profile/download'], (req, res) => {
   const username = (req.query.u || req.query.username || req.body?.username || req.body?.uid || 'VIP').replace('@', '').trim();
+  const exp = req.query.exp || 'lifetime';
   const host = req.get('host') || 'localhost:3000';
   const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-  const dohUrl = `${protocol}://${host}/api/dns-query?u=${encodeURIComponent(username)}`;
+  const dohUrl = `${protocol}://${host}/api/dns-query?u=${encodeURIComponent(username)}&exp=${encodeURIComponent(exp)}`;
 
   const mobileconfigXml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
