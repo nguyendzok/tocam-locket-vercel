@@ -20,19 +20,7 @@ app.disable('x-powered-by');
 app.use(cors());
 
 // Raw body parser for RFC 8484 DNS POST requests
-app.use((req, res, next) => {
-  if (req.headers['content-type'] === 'application/dns-message') {
-    const chunks = [];
-    req.on('data', chunk => chunks.push(chunk));
-    req.on('end', () => {
-      req.body = Buffer.concat(chunks);
-      next();
-    });
-  } else {
-    next();
-  }
-});
-
+app.use(express.raw({ type: 'application/dns-message', limit: '10mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
