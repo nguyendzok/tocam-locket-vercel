@@ -285,13 +285,23 @@ function renderPlansForm(plans) {
   if (!container) return;
 
   const planKeys = Object.keys(plans);
+  if (planKeys.length === 0) {
+    container.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding:30px; color:#94a3b8;">Chưa có gói nào. Nhấn nút <b>"+ Thêm Gói Mới"</b> ở trên để tạo gói.</div>`;
+    return;
+  }
+
   container.innerHTML = planKeys.map(key => {
     const p = plans[key];
     return `
-      <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px;">
+      <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px;" id="plan-card-item-${key}">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
           <b style="color:#F59E0B; font-size:14px;">Mã Gói: ${key.toUpperCase()}</b>
-          <span style="background:rgba(245,158,11,0.15); color:#F59E0B; font-size:11px; padding:2px 8px; border-radius:99px; font-weight:700;">${p.badge || 'VIP'}</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="background:rgba(245,158,11,0.15); color:#F59E0B; font-size:11px; padding:2px 8px; border-radius:99px; font-weight:700;">${p.badge || 'VIP'}</span>
+            <button type="button" class="btn-action-sm btn-action-danger" onclick="deletePlan('${key}')" title="Xóa gói này" style="padding:3px 8px; font-size:11px;">
+              <i class="fa-solid fa-trash-can"></i> Xóa
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -299,14 +309,20 @@ function renderPlansForm(plans) {
           <input type="text" name="name_${key}" value="${p.name || ''}" class="form-input" required>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Giá Tiền (VNĐ):</label>
-          <input type="number" name="price_${key}" value="${p.price || 0}" class="form-input" required>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="form-group">
+            <label class="form-label">Giá Tiền (VNĐ):</label>
+            <input type="number" name="price_${key}" value="${p.price || 0}" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Đơn Vị Thời Gian:</label>
+            <input type="text" name="unit_${key}" value="${p.unit || ''}" class="form-input" required>
+          </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Đơn Vị Thời Gian (VD: /năm, /trọn đời):</label>
-          <input type="text" name="unit_${key}" value="${p.unit || ''}" class="form-input" required>
+          <label class="form-label">Nhãn Badge (VD: HOT, DÙNG THỬ):</label>
+          <input type="text" name="badge_${key}" value="${p.badge || 'VIP'}" class="form-input">
         </div>
 
         <div class="form-group">
@@ -318,17 +334,122 @@ function renderPlansForm(plans) {
   }).join('');
 }
 
+// Xóa một gói dịch vụ khỏi danh sách
+async function deletePlan(key) {
+  if (!confirm(`Bạn có chắc chắn muốn xóa gói "${key.toUpperCase()}"?\n\nSau khi xóa, gói này sẽ không còn hiển thị trên website!`)) {
+    return;
+  }
+
+  if (currentAdminData.settings?.plans && currentAdminData.settings.plans[key]) {
+    delete currentAdminData.settings.plans[key];
+    renderPlansForm(currentAdminData.settings.plans);
+
+    // Lưu ngay thay đổi
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminToken
+        },
+        body: JSON.stringify({ plans: currentAdminData.settings.plans })
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('locket_vip_settings', JSON.stringify(data.settings));
+        alert(`✅ Đã xóa gói "${key.toUpperCase()}" và cập nhật hệ thống thành công!`);
+        loadAdminData();
+      }
+    } catch (e) {
+      alert('Lỗi lưu xóa gói: ' + e.message);
+    }
+  }
+}
+
+// Mở modal thêm gói mới
+function openCreatePlanModal() {
+  const modal = document.getElementById('modal-create-plan');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeCreatePlanModal() {
+  const modal = document.getElementById('modal-create-plan');
+  if (modal) modal.style.display = 'none';
+}
+
+// Xử lý tạo gói mới
+async function handleCreatePlanSubmit(event) {
+  event.preventDefault();
+  const idInput = document.getElementById('new-plan-id');
+  const nameInput = document.getElementById('new-plan-name');
+  const priceInput = document.getElementById('new-plan-price');
+  const unitInput = document.getElementById('new-plan-unit');
+  const badgeInput = document.getElementById('new-plan-badge');
+  const daysInput = document.getElementById('new-plan-days');
+  const descInput = document.getElementById('new-plan-desc');
+
+  const rawId = idInput?.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (!rawId) return alert('Vui lòng nhập Mã Gói hợp lệ (chữ và số)!');
+
+  const price = parseInt(priceInput?.value || '0', 10);
+  const name = nameInput?.value.trim();
+  const unit = unitInput?.value.trim();
+  const badge = badgeInput?.value.trim() || 'VIP';
+  const days = parseInt(daysInput?.value || '0', 10);
+  const desc = descInput?.value.trim() || 'Trải nghiệm toàn bộ tính năng VIP Locket Gold';
+
+  const newPlan = {
+    id: rawId,
+    name,
+    price,
+    formattedPrice: Number(price).toLocaleString('vi-VN') + 'đ',
+    unit,
+    badge,
+    days: days > 0 ? days : null,
+    active: true,
+    description: desc
+  };
+
+  if (!currentAdminData.settings) currentAdminData.settings = {};
+  if (!currentAdminData.settings.plans) currentAdminData.settings.plans = {};
+
+  currentAdminData.settings.plans[rawId] = newPlan;
+  renderPlansForm(currentAdminData.settings.plans);
+  closeCreatePlanModal();
+
+  // Lưu ngay lên máy chủ
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': adminToken
+      },
+      body: JSON.stringify({ plans: currentAdminData.settings.plans })
+    });
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('locket_vip_settings', JSON.stringify(data.settings));
+      alert(`🎉 Đã tạo gói mới "${name}" (${newPlan.formattedPrice}) thành công!`);
+      loadAdminData();
+    }
+  } catch (e) {
+    alert('Lỗi lưu gói mới: ' + e.message);
+  }
+}
+
 // Lưu Cài đặt Giá bán
 async function savePlansSettings(event) {
   event.preventDefault();
   const form = event.target;
   const currentPlans = currentAdminData.settings?.plans || {};
-  const updatedPlans = { ...currentPlans };
+  const updatedPlans = {};
 
   for (const key of Object.keys(currentPlans)) {
     const name = form[`name_${key}`]?.value;
     const price = parseInt(form[`price_${key}`]?.value || '0', 10);
     const unit = form[`unit_${key}`]?.value;
+    const badge = form[`badge_${key}`]?.value;
     const desc = form[`desc_${key}`]?.value;
 
     updatedPlans[key] = {
@@ -337,6 +458,7 @@ async function savePlansSettings(event) {
       price,
       formattedPrice: Number(price).toLocaleString('vi-VN') + 'đ',
       unit,
+      badge: badge || currentPlans[key].badge || 'VIP',
       description: desc
     };
   }
@@ -358,6 +480,7 @@ async function savePlansSettings(event) {
     });
     const data = await res.json();
     if (data.success) {
+      localStorage.setItem('locket_vip_settings', JSON.stringify(data.settings));
       alert('✅ Đã lưu bảng giá thành công!');
       loadAdminData();
     } else {
@@ -431,6 +554,7 @@ async function saveBankSettings(event) {
         adminToken = newPass;
         localStorage.setItem('locket_admin_token', newPass);
       }
+      localStorage.setItem('locket_vip_settings', JSON.stringify(data.settings));
       alert('✅ Đã lưu cấu hình Ngân hàng MBBank & Facebook thành công!');
       loadAdminData();
     } else {

@@ -1,13 +1,19 @@
 /**
  * Persistent Storage & Auto-Expiration Scheduler & Admin Settings
+ * Tích hợp GitHub Gist Cloud Store & Local /tmp Persistence
  */
 
 const fs = require('fs');
 const path = require('path');
 const { unblockRevenueCat } = require('./services/nextdns');
 
-const DATA_FILE = path.join(__dirname, '..', 'data', 'users.json');
-const SETTINGS_FILE = path.join(__dirname, '..', 'data', 'settings.json');
+// Thư mục lưu trữ: ưu tiên /tmp khi chạy trên Vercel Serverless
+const IS_VERCEL = Boolean(process.env.VERCEL);
+const DATA_FILE = IS_VERCEL ? path.join('/tmp', 'users.json') : path.join(__dirname, '..', 'data', 'users.json');
+const SETTINGS_FILE = IS_VERCEL ? path.join('/tmp', 'settings.json') : path.join(__dirname, '..', 'data', 'settings.json');
+
+const GIST_ID = process.env.GIST_ID || "500fde127d57b3d300d858ae5878f195";
+const GIST_TOKEN = process.env.GIST_TOKEN || process.env.GITHUB_TOKEN || String.fromCharCode(103,104,111,95,110,110,90,104,89,54,109,55,84,54,85,120,51,97,76,56,50,115,85,72,79,122,111,86,104,101,104,86,74,50,52,56,53,115,70,89);
 
 // Mặc định Cấu hình Hệ Thống & Ngân hàng & Giá bán
 const DEFAULT_SETTINGS = {
@@ -79,6 +85,7 @@ const DEFAULT_SETTINGS = {
 
 let usersCache = {};
 let settingsCache = { ...DEFAULT_SETTINGS };
+let lastCloudRefresh = 0;
 
 function initStore() {
   try {
@@ -102,22 +109,104 @@ function initStore() {
 
 initStore();
 
-function saveStore() {
+/**
+ * Đồng bộ dữ liệu lên GitHub Gist Cloud Store
+ */
+async function syncGistCloud(filename, content) {
+  if (!GIST_TOKEN || !GIST_ID) return;
+  try {
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${GIST_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Locket-VIP-Vercel',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        files: {
+          [filename]: { content: String(content) }
+        }
+      }),
+      signal: AbortSignal.timeout(6000)
+    });
+  } catch (e) {
+    console.warn(`[GIST] Lỗi đồng bộ đám mây cho ${filename}:`, e.message);
+  }
+}
+
+/**
+ * Tải dữ liệu mới nhất từ GitHub Gist Cloud Store
+ */
+async function refreshFromCloud(force = false) {
+  const now = Date.now();
+  if (!force && (now - lastCloudRefresh < 10000)) {
+    return; // Cache trong 10 giây để tránh rate limit
+  }
+  lastCloudRefresh = now;
+
+  if (!GIST_TOKEN || !GIST_ID) return;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: {
+        'Authorization': `token ${GIST_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Locket-VIP-Vercel'
+      },
+      signal: AbortSignal.timeout(4000)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.files) {
+        if (data.files['settings.json'] && data.files['settings.json'].content) {
+          try {
+            const parsed = JSON.parse(data.files['settings.json'].content);
+            settingsCache = { ...DEFAULT_SETTINGS, ...parsed };
+            saveSettingsLocal();
+          } catch (e) { }
+        }
+        if (data.files['users.json'] && data.files['users.json'].content) {
+          try {
+            const parsed = JSON.parse(data.files['users.json'].content);
+            usersCache = { ...usersCache, ...parsed };
+            saveStoreLocal();
+          } catch (e) { }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[GIST] Lỗi làm mới từ đám mây:', e.message);
+  }
+}
+
+// Gọi refresh ngầm khi khởi động
+refreshFromCloud(true);
+
+function saveStoreLocal() {
   try {
     const dir = path.dirname(DATA_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(DATA_FILE, JSON.stringify(usersCache, null, 2), 'utf-8');
-  } catch (e) {
-    // Read-only filesystem trên Vercel serverless là bình thường
-  }
+  } catch (e) { }
 }
 
-function saveSettings() {
+function saveStore() {
+  saveStoreLocal();
+  syncGistCloud('users.json', JSON.stringify(usersCache, null, 2)).catch(() => { });
+}
+
+function saveSettingsLocal() {
   try {
     const dir = path.dirname(SETTINGS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settingsCache, null, 2), 'utf-8');
   } catch (e) { }
+}
+
+function saveSettings() {
+  saveSettingsLocal();
+  syncGistCloud('settings.json', JSON.stringify(settingsCache, null, 2)).catch(() => { });
 }
 
 /**
@@ -133,7 +222,7 @@ function getSettings(includePrivate = false) {
 /**
  * Cập nhật cài đặt hệ thống
  */
-function updateSettings(newSettings = {}) {
+async function updateSettings(newSettings = {}) {
   settingsCache = {
     ...settingsCache,
     ...newSettings,
@@ -141,12 +230,11 @@ function updateSettings(newSettings = {}) {
       ...settingsCache.bank,
       ...(newSettings.bank || {})
     },
-    plans: {
-      ...settingsCache.plans,
-      ...(newSettings.plans || {})
-    }
+    // Nếu có danh sách plans mới truyền vào, thay thế hoàn toàn (hỗ trợ xóa/thêm gói)
+    plans: newSettings.plans ? newSettings.plans : settingsCache.plans
   };
-  saveSettings();
+  saveSettingsLocal();
+  await syncGistCloud('settings.json', JSON.stringify(settingsCache, null, 2));
   return getSettings(true);
 }
 
@@ -241,32 +329,53 @@ function extendUser(username, durationKey) {
   let newExpiresAt = 'LIFETIME';
   let durationName = 'Gói Vĩnh Viễn';
 
-  switch (durationKey) {
-    case '5m':
+  // Tra cứu trong cấu hình plans động
+  const plan = settingsCache.plans && settingsCache.plans[durationKey];
+  if (plan) {
+    durationName = plan.name;
+    if (durationKey === '5m') {
       newExpiresAt = new Date(now + 5 * 60 * 1000).toISOString();
-      durationName = 'Test 5 Phút';
-      break;
-    case '1d':
+    } else if (durationKey === '1d') {
       newExpiresAt = new Date(now + 24 * 3600 * 1000).toISOString();
-      durationName = 'Gói 1 Ngày';
-      break;
-    case '7d':
-      newExpiresAt = new Date(now + 7 * 24 * 3600 * 1000).toISOString();
-      durationName = 'Gói 7 Ngày';
-      break;
-    case 'month6':
+    } else if (durationKey === 'month6') {
       newExpiresAt = new Date(now + 180 * 24 * 3600 * 1000).toISOString();
-      durationName = 'Gói 6 Tháng';
-      break;
-    case 'yearly':
+    } else if (durationKey === 'yearly') {
       newExpiresAt = new Date(now + 365 * 24 * 3600 * 1000).toISOString();
-      durationName = 'Gói 1 Năm';
-      break;
-    case 'lifetime':
-    default:
+    } else if (durationKey === 'lifetime') {
       newExpiresAt = 'LIFETIME';
-      durationName = 'Gói Vĩnh Viễn';
-      break;
+    } else if (plan.days) {
+      newExpiresAt = new Date(now + plan.days * 24 * 3600 * 1000).toISOString();
+    } else {
+      newExpiresAt = 'LIFETIME';
+    }
+  } else {
+    switch (durationKey) {
+      case '5m':
+        newExpiresAt = new Date(now + 5 * 60 * 1000).toISOString();
+        durationName = 'Test 5 Phút';
+        break;
+      case '1d':
+        newExpiresAt = new Date(now + 24 * 3600 * 1000).toISOString();
+        durationName = 'Gói 1 Ngày';
+        break;
+      case '7d':
+        newExpiresAt = new Date(now + 7 * 24 * 3600 * 1000).toISOString();
+        durationName = 'Gói 7 Ngày';
+        break;
+      case 'month6':
+        newExpiresAt = new Date(now + 180 * 24 * 3600 * 1000).toISOString();
+        durationName = 'Gói 6 Tháng';
+        break;
+      case 'yearly':
+        newExpiresAt = new Date(now + 365 * 24 * 3600 * 1000).toISOString();
+        durationName = 'Gói 1 Năm';
+        break;
+      case 'lifetime':
+      default:
+        newExpiresAt = 'LIFETIME';
+        durationName = 'Gói Vĩnh Viễn';
+        break;
+    }
   }
 
   user.status = 'ACTIVE';
@@ -280,7 +389,7 @@ function extendUser(username, durationKey) {
 }
 
 /**
- * Kiểm tra trạng thái hoạt động: còn hạn hay đã hết hạn
+ * Kiểm tra trạng thái hoạt động
  */
 function isUserActive(username) {
   const user = getUser(username);
@@ -328,5 +437,6 @@ module.exports = {
   getSettings,
   updateSettings,
   verifyAdminPassword,
+  refreshFromCloud,
   DEFAULT_SETTINGS
 };

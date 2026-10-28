@@ -101,8 +101,8 @@
         1. Chọn Gói Nâng Cấp Phù Hợp
       </h2>
 
-      <!-- Bảng giá 0k / 9k / 39k / 69k / 99k -->
-      <div class="plans-grid">
+      <!-- Bảng giá động tự động đồng bộ từ Admin -->
+      <div class="plans-grid" id="gold-plans-grid">
         <!-- Gói Test 5 Phút (Miễn Phí Test Rụng Gold) -->
         <div class="plan-card" id="plan-card-test5m"
           onclick="selectPlan(this, 'Test Rụng Gold (5 Phút)', 0, '0đ (Test Rụng)', '5m')">
@@ -232,47 +232,16 @@
         (function autoSelectInitialPlan() {
           try {
             var params = new URLSearchParams(window.location.search);
-            var p = (params.get('plan') || params.get('package') || params.get('goi') || params.get('p') || localStorage.getItem('tocam_selected_plan') || '').toLowerCase();
-            var isTest = p.indexOf('test') !== -1 || p.indexOf('9000') !== -1 || p.indexOf('9k') !== -1 || p.indexOf('5000') !== -1 || p.indexOf('5k') !== -1 || p.indexOf('dungthu') !== -1;
-            var is6Month = p.indexOf('39') !== -1 || p.indexOf('6m') !== -1 || p.indexOf('6thang') !== -1 || p.indexOf('6month') !== -1 || p.indexOf('phobien') !== -1;
-            var isYearly = p.indexOf('69') !== -1 || p.indexOf('year') !== -1 || p.indexOf('nam') !== -1 || p.indexOf('tietkiem') !== -1;
-            var tCard = document.getElementById('plan-card-test');
-            var mCard = document.getElementById('plan-card-6month');
-            var yCard = document.getElementById('plan-card-yearly');
-            var lCard = document.getElementById('plan-card-lifetime');
-            var btn = document.getElementById('btn-continue-step1');
-            var payAmt = document.getElementById('pay-amount');
-
-            if (isTest) {
-              if (tCard) tCard.classList.add('active');
-              if (mCard) mCard.classList.remove('active');
-              if (yCard) yCard.classList.remove('active');
-              if (lCard) lCard.classList.remove('active');
-              if (btn) btn.innerHTML = '<span>Nâng Cấp/Gia Hạn Gói 9.000đ</span> <i class="fa-solid fa-flask"></i>';
-              if (payAmt) payAmt.innerText = '9.000đ';
-            } else if (is6Month) {
-              if (mCard) mCard.classList.add('active');
-              if (tCard) tCard.classList.remove('active');
-              if (yCard) yCard.classList.remove('active');
-              if (lCard) lCard.classList.remove('active');
-              if (btn) btn.innerHTML = '<span>Nâng Cấp/Gia Hạn Gói 39.000đ</span> <i class="fa-solid fa-fire"></i>';
-              if (payAmt) payAmt.innerText = '39.000đ';
-            } else if (isYearly) {
-              if (yCard) yCard.classList.add('active');
-              if (tCard) tCard.classList.remove('active');
-              if (mCard) mCard.classList.remove('active');
-              if (lCard) lCard.classList.remove('active');
-              if (btn) btn.innerHTML = '<span>Nâng Cấp/Gia Hạn Gói 69.000đ</span> <i class="fa-solid fa-arrow-right"></i>';
-              if (payAmt) payAmt.innerText = '69.000đ';
-            } else {
-              if (lCard) lCard.classList.add('active');
-              if (tCard) tCard.classList.remove('active');
-              if (mCard) mCard.classList.remove('active');
-              if (yCard) yCard.classList.remove('active');
-              if (btn) btn.innerHTML = '<span>Nâng Cấp/Gia Hạn Gói 99.000đ</span> <i class="fa-solid fa-crown"></i>';
+            var p = (params.get('plan') || params.get('package') || params.get('goi') || params.get('p') || localStorage.getItem('tocam_selected_plan') || 'lifetime').toLowerCase();
+            var plans = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.PLANS) ? TO_CAM_CONFIG.PLANS : {};
+            var targetPlan = plans[p] || plans['lifetime'] || (typeof Object.values === 'function' ? Object.values(plans)[0] : null);
+            if (targetPlan && typeof selectPlan === 'function') {
+              var card = document.getElementById('plan-card-' + (targetPlan.id || p));
+              selectPlan(card, targetPlan.name, targetPlan.price, targetPlan.formattedPrice || (targetPlan.price + 'đ'), targetPlan.id || p);
             }
           } catch (e) { }
         })();
+      </script>
       </script>
 
       <!-- Danh sách đầy đủ 9 thông số tính năng theo yêu cầu -->

@@ -1,0 +1,66 @@
+{
+  "adminPassword": "admin123",
+  "brandName": "LOCKET GOLD VIP",
+  "brandSlogan": "Hệ Thống Nâng Cấp Locket Gold & Server DNS Chống Rụng Tự Động",
+  "facebookUrl": "https://www.facebook.com/messages/t/nguyendzok",
+  "facebookName": "Hỗ Trợ Facebook 24/7",
+  "mbbankToken": "2q5YDTrQAmVbm9cWKPaoVgFgn2t4",
+  "bank": {
+    "bankId": "MB",
+    "bankName": "MBBank (Ngân hàng TMCP Quân Đội)",
+    "accountNumber": "11223344557766",
+    "accountHolder": "HOANG NGOC NGUYEN"
+  },
+  "plans": {
+    "5m": {
+      "id": "5m",
+      "name": "Test 5 Phút",
+      "price": 0,
+      "formattedPrice": "0đ",
+      "unit": "/5 phút",
+      "badge": "TEST RỤNG",
+      "active": true,
+      "description": "Dùng thử kiểm chứng cơ chế tự động rụng Gold sau đúng 5 phút"
+    },
+    "1d": {
+      "id": "1d",
+      "name": "Gói 1 Ngày",
+      "price": 9000,
+      "formattedPrice": "9.000đ",
+      "unit": "/1 ngày",
+      "badge": "DÙNG THỬ",
+      "active": true,
+      "description": "Trải nghiệm đầy đủ 9 đặc quyền VIP Locket Gold trong 24 giờ"
+    },
+    "month6": {
+      "id": "month6",
+      "name": "Gói 6 Tháng",
+      "price": 39000,
+      "formattedPrice": "39.000đ",
+      "unit": "/6 tháng",
+      "badge": "PHỔ BIẾN",
+      "active": true,
+      "description": "Sử dụng ổn định 180 ngày, bảo hành DNS tự động"
+    },
+    "yearly": {
+      "id": "yearly",
+      "name": "Gói 1 Năm",
+      "price": 69000,
+      "formattedPrice": "69.000đ",
+      "unit": "/năm",
+      "badge": "TIẾT KIỆM",
+      "active": true,
+      "description": "Sử dụng trọn vẹn 365 ngày (1 năm), tiết kiệm tối đa"
+    },
+    "lifetime": {
+      "id": "lifetime",
+      "name": "Gói Vĩnh Viễn",
+      "price": 99000,
+      "formattedPrice": "99.000đ",
+      "unit": "/trọn đời",
+      "badge": "KHUYÊN DÙNG",
+      "active": true,
+      "description": "Bảo hành trọn đời, tường lửa chống rụng vĩnh viễn"
+    }
+  }
+}

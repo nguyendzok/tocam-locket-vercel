@@ -1395,7 +1395,7 @@ const ALL_VIP_CAPTIONS = [
   '🙄 Hay ra dẻ quá à!',
   '🎮 Giảm sức mạnh con tướng',
   '🫣 Mắc cỡ quá hai ơi',
-  '🍊 tổ cam vip - uy tín 24/7 bảo hành đến khi web còn 🔥',
+  '👑 Locket Gold VIP - Uy tín 24/7 bảo hành đến khi web còn 🔥',
   '🎬 khoảnh khắc video 30 giây siêu nét 📸'
 ];
 let currentCaptionIdx = 0;
@@ -2794,6 +2794,11 @@ function syncContactConfig() {
   // Facebook
   document.querySelectorAll('.cfg-fb-link').forEach(el => {
     el.href = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.FACEBOOK_URL) ? TO_CAM_CONFIG.FACEBOOK_URL : 'https://www.facebook.com/messages/t/nguyendzok';
+    el.onclick = function() {
+      if (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.FACEBOOK_URL) {
+        this.href = TO_CAM_CONFIG.FACEBOOK_URL;
+      }
+    };
   });
   document.querySelectorAll('.cfg-fb-name').forEach(el => {
     el.innerText = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.FACEBOOK_NAME) ? TO_CAM_CONFIG.FACEBOOK_NAME : 'Hỗ Trợ 24/7';
@@ -2926,18 +2931,10 @@ function selectIndexPlan(card, plan) {
   const btnProceedText = document.getElementById('btn-index-proceed-text');
   const btnHero = document.getElementById('btn-hero-upgrade');
 
-  let planLabel = 'Gói Vĩnh Viễn (99K)';
+  const plans = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.PLANS) ? TO_CAM_CONFIG.PLANS : {};
+  const currentPlanObj = plans[targetPlan] || plans['lifetime'];
+  let planLabel = currentPlanObj ? `${currentPlanObj.name} (${currentPlanObj.formattedPrice || currentPlanObj.price + 'đ'})` : 'Gói Vĩnh Viễn';
   const planUrl = `gold.html?plan=${encodeURIComponent(targetPlan)}`;
-
-  if (targetPlan === 'test') {
-    planLabel = 'Gói Test Dùng Thử (9K)';
-  } else if (targetPlan === '6month') {
-    planLabel = 'Gói 6 Tháng (39K)';
-  } else if (targetPlan === 'yearly') {
-    planLabel = 'Gói 1 Năm (69K)';
-  } else {
-    planLabel = 'Gói Vĩnh Viễn (99K)';
-  }
 
   if (btnProceedText) {
     btnProceedText.textContent = `Tiến Hành Nâng Cấp ${planLabel}`;
@@ -2983,10 +2980,7 @@ function goToCurrentSelectedPlan(e) {
   const activeCard = document.querySelector('.plans-grid .plan-card.active');
   let chosen = 'lifetime';
   if (activeCard && activeCard.id) {
-    if (activeCard.id.includes('test')) chosen = 'test';
-    else if (activeCard.id.includes('6month')) chosen = '6month';
-    else if (activeCard.id.includes('yearly')) chosen = 'yearly';
-    else if (activeCard.id.includes('lifetime')) chosen = 'lifetime';
+    chosen = activeCard.id.replace('index-plan-', '').replace('plan-card-', '');
   } else {
     chosen = localStorage.getItem('tocam_selected_plan') || 'lifetime';
   }

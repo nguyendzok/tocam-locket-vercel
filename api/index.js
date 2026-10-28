@@ -21,7 +21,8 @@ const {
   checkExpirations,
   getSettings,
   updateSettings,
-  verifyAdminPassword
+  verifyAdminPassword,
+  refreshFromCloud
 } = require('./store');
 const { handleDohRequest } = require('./dns-query');
 const { fetchMbbankHistory, checkPaymentForUser } = require('./services/mbbank');
@@ -69,7 +70,8 @@ app.get('/health', (req, res) => {
 // ============================================================
 // 1. CẤU HÌNH HỆ THỐNG CÔNG KHAI (PUBLIC SETTINGS)
 // ============================================================
-app.get('/api/settings', (req, res) => {
+app.get('/api/settings', async (req, res) => {
+  await refreshFromCloud();
   const settings = getSettings();
   res.json({
     ok: true,
@@ -560,6 +562,7 @@ app.post('/api/admin/login', (req, res) => {
 
 // Lấy toàn bộ dữ liệu quản trị (Thống kê, Users, Settings)
 app.get('/api/admin/data', requireAdminAuth, async (req, res) => {
+  await refreshFromCloud(true);
   const allUsers = getAllUsers();
   const settings = getSettings(true);
   const activeCount = allUsers.filter(u => u.status === 'ACTIVE' && isUserActive(u.username)).length;
@@ -578,9 +581,9 @@ app.get('/api/admin/data', requireAdminAuth, async (req, res) => {
 });
 
 // Cập nhật Cài đặt Admin (Giá bán, Ngân hàng, MBBank Token, Facebook, Đổi pass)
-app.post('/api/admin/settings', requireAdminAuth, (req, res) => {
+app.post('/api/admin/settings', requireAdminAuth, async (req, res) => {
   const newSettings = req.body || {};
-  const updated = updateSettings(newSettings);
+  const updated = await updateSettings(newSettings);
   res.json({ success: true, message: 'Đã lưu cấu hình thành công!', settings: updated });
 });
 

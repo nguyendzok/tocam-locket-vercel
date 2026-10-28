@@ -76,7 +76,7 @@
     const textStyle = 'color: #ffa033; font-size: 14px; font-weight: bold; line-height: 1.6;';
     console.log('%c⚠️ DỪNG LẠI! / STOP!', bannerStyle);
     console.log(
-      '%cĐây là tính năng dành cho nhà phát triển hệ thống Tổ Cam.\nNếu ai đó bảo bạn sao chép và dán bất kỳ đoạn mã nào vào đây, đó là hành vi lừa đảo nhằm đánh cắp tài khoản Locket hoặc chiếm đoạt thông tin của bạn!',
+      '%cĐây là tính năng dành cho nhà phát triển hệ thống Locket Gold VIP.\nNếu ai đó bảo bạn sao chép và dán bất kỳ đoạn mã nào vào đây, đó là hành vi lừa đảo nhằm đánh cắp tài khoản Locket hoặc chiếm đoạt thông tin của bạn!',
       textStyle
     );
   } catch (err) {}
