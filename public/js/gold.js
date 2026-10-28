@@ -406,7 +406,7 @@ function lookupUsername(onComplete) {
 
 function goToStep(step) {
   if (step === 3 && !isPaymentVerified) {
-    alert('⚠️ Bạn chưa hoàn tất thanh toán. Vui lòng hoàn tất thanh toán ở Bước 2 để hệ thống trừ coin & cấp cấu hình DNS!');
+    alert('⚠️ Bạn chưa hoàn tất thanh toán. Vui lòng hoàn tất thanh toán ở Bước 2 để hệ thống kích hoạt!');
     goToStep(2);
     return;
   }
@@ -418,7 +418,7 @@ function goToStep(step) {
     const cleaned = cleanLocketUsername(candidate);
 
     if (!cleaned) {
-      setUsernameError(true, 'Vui lòng nhập Username Locket của bạn trước khi sang bước thanh toán!');
+      setUsernameError(true, 'Vui lòng nhập Username Locket của bạn trước khi sang bước tiếp theo!');
       input?.focus();
       return;
     }
@@ -429,36 +429,31 @@ function goToStep(step) {
       return;
     }
 
-    // NẾU TÀI KHOẢN ĐÃ BỊ BÁO KHÔNG TỒN TẠI TRÊN LOCKET -> CHẶN KHÔNG CHO SANG BƯỚC 2!
-    if (isUsernameVerified === false) {
-      setUsernameError(true, `❌ Tài khoản "@${cleaned}" không tồn tại trên Locket. Vui lòng kiểm tra lại username!`);
-      if (input) {
-        input.classList.add('input-invalid');
-        input.focus();
-      }
-      return;
-    }
-
-    // Nếu người dùng chưa bấm nút kiểm tra (chưa xác minh) -> tự động xác minh trước khi sang bước 2
-    if (isUsernameVerified !== true) {
+    // Nếu người dùng chưa từng lookup, thử lookup nhanh nhưng không chặn cứng (timeout 2s fallback)
+    if (isUsernameVerified !== true && isUsernameVerified !== false) {
       const btn = document.getElementById('btn-continue-step1');
+      const originalBtnText = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin"></i> Đang xác thực tài khoản Locket...</span>';
+        btn.innerHTML = '<span><i class="fa-solid fa-spinner fa-spin"></i> Đang xác thực tài khoản...</span>';
       }
-      lookupUsername((valid) => {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = `<span>Nâng Cấp/Gia Hạn Gói ${selectedPlan?.formattedPrice || '99.000đ'}</span> <i class="fa-solid fa-crown"></i>`;
-        }
-        if (valid) {
+      let answered = false;
+      const timer = setTimeout(() => {
+        if (!answered) {
+          answered = true;
+          isUsernameVerified = true;
+          if (btn) { btn.disabled = false; btn.innerHTML = originalBtnText; }
           goToStep(2);
-        } else {
-          if (input) {
-            input.classList.add('input-invalid');
-            input.focus();
-          }
         }
+      }, 2000);
+
+      lookupUsername((valid) => {
+        if (answered) return;
+        answered = true;
+        clearTimeout(timer);
+        if (btn) { btn.disabled = false; btn.innerHTML = originalBtnText; }
+        isUsernameVerified = true;
+        goToStep(2);
       });
       return;
     }
@@ -466,43 +461,17 @@ function goToStep(step) {
     setUsernameError(false);
     if (input) input.value = cleaned;
     currentUsername = cleaned;
-    isPaymentVerified = false; // Luôn yêu cầu chuyển khoản cho mỗi phiên giao dịch
-    paymentSessionStartTime = Date.now(); // Khởi tạo mốc thời gian phiên thanh toán mới
+    isPaymentVerified = false;
+    paymentSessionStartTime = Date.now();
     isPaymentTransitioning = false;
-    updatePaymentInfo();
-    loadRecentTransactions();
-    startPaymentTimer();
-
-    // NẾU LÀ GÓI 0Đ (MIỄN PHÍ/TEST): TỰ ĐỘNG CHUYỂN SANG BƯỚC 3 SAU ĐÚNG 2 GIÂY!
-    if (selectedPlan && (Number(selectedPlan.price) === 0 || selectedPlan.code === '5m')) {
-      console.log('[FREE PLAN 0D] Phát hiện gói 0đ. Tự động chuyển sang bước kích hoạt sau 2 giây...');
-      const currentTxBadge = document.getElementById('step2-current-tx-badge');
-      if (currentTxBadge) {
-        currentTxBadge.className = 'step2-tx-badge success';
-        currentTxBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Miễn phí (Chuyển sau 2s...)';
-      }
-      setTimeout(() => {
-        if (currentStep === 2) {
-          isPaymentVerified = true;
-          markPaymentSuccessAndProceed({
-            paid: true,
-            free: true,
-            locketStatus: 'ACTIVE',
-            plan: selectedPlan.code || '5m'
-          });
-        }
-      }, 2000);
-      return;
-    }
-
-    startPaymentPolling(); // ← Bắt đầu polling tự động cho các gói có phí!
   }
 
-  // Dừng polling khi rời khỏi bước 2
+  // Dừng polling nếu rời khỏi bước 2
   if (step !== 2) {
     stopPaymentPolling();
   }
 
+  // CHUYỂN BƯỚC GIAO DIỆN NGAY LẬP TỨC (Đảm bảo step 2 hoặc step 3 luôn hiển thị)
   currentStep = step;
   document.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
   const targetStep = document.getElementById(`step-${step}`);
@@ -523,7 +492,37 @@ function goToStep(step) {
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Ở bước 3: Chờ người dùng nhấn nút kích hoạt, không tự động kích hoạt
+  // XỬ LÝ NỘI DUNG BƯỚC 2
+  if (step === 2) {
+    updatePaymentInfo();
+    loadRecentTransactions();
+    startPaymentTimer();
+
+    // NẾU LÀ GÓI 0Đ (MIỄN PHÍ/TEST 5 PHÚT): TỰ ĐỘNG CHUYỂN SANG BƯỚC 3 SAU ĐÚNG 2 GIÂY!
+    if (selectedPlan && (Number(selectedPlan.price) === 0 || selectedPlan.code === '5m')) {
+      console.log('[FREE PLAN 0D] Đã sang Bước 2 gói 0đ. Sẽ tự động chuyển sang trang kích hoạt sau đúng 2 giây...');
+      const currentTxBadge = document.getElementById('step2-current-tx-badge');
+      if (currentTxBadge) {
+        currentTxBadge.className = 'step2-tx-badge success';
+        currentTxBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Miễn phí (Chuyển sang bước 3 sau 2s...)';
+      }
+      setTimeout(() => {
+        if (currentStep === 2) {
+          isPaymentVerified = true;
+          markPaymentSuccessAndProceed({
+            paid: true,
+            free: true,
+            locketStatus: 'ACTIVE',
+            plan: selectedPlan.code || '5m'
+          });
+        }
+      }, 2000);
+    } else {
+      startPaymentPolling(); // Bắt đầu polling tự động 5s cho các gói có phí
+    }
+  }
+
+  // XỬ LÝ NỘI DUNG BƯỚC 3
   if (step === 3) {
     const terminal = document.getElementById('terminal-content');
     if (terminal) {
@@ -534,7 +533,7 @@ function goToStep(step) {
         </div>
         <div class="log-entry">
           <span class="log-prefix">[*]</span>
-          <span>[SẴN SÀNG] Đã xác nhận thanh toán tài khoản @${currentUsername || 'bạn'}</span>
+          <span>[SẴN SÀNG] Đã xác nhận gói ${selectedPlan?.name || 'Gold'} cho tài khoản @${currentUsername || 'bạn'}</span>
         </div>
         <div class="log-entry gold">
           <span class="log-prefix">[*]</span>
