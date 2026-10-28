@@ -1,37 +1,62 @@
 /**
  * MBBank Transaction Checker Module
  * Kết nối API MBBank để tự động quét lịch sử giao dịch và xác nhận thanh toán
+ * Hỗ trợ bộ đệm Cache 4.5 giây để khớp tần suất tự động quét 5 giây/lần
  */
 
 const DEFAULT_MBB_TOKEN = process.env.MBB_TOKEN || "2q5YDTrQAmVbm9cWKPaoVgFgn2t4";
 const MBB_API_BASE = "https://apimbb.vercel.app/historyapimbb";
 
+let mbbCache = {
+  data: [],
+  timestamp: 0,
+  token: null
+};
+
 /**
- * Lấy lịch sử giao dịch từ API MBBank
+ * Lấy lịch sử giao dịch từ API MBBank (Có cache 4.5s tránh rate-limit)
  * @param {string} token 
+ * @param {boolean} force
  * @returns {Promise<Array>}
  */
-async function fetchMbbankHistory(token = DEFAULT_MBB_TOKEN) {
+async function fetchMbbankHistory(token = DEFAULT_MBB_TOKEN, force = false) {
+  const currentToken = (token && token.trim()) ? token.trim() : DEFAULT_MBB_TOKEN;
+  const now = Date.now();
+
+  // Khớp với tần suất polling 5s của client: nếu chưa quá 4.5s thì trả về cache ngay lập tức (0ms)
+  if (!force && mbbCache.data.length > 0 && mbbCache.token === currentToken && (now - mbbCache.timestamp < 4500)) {
+    return mbbCache.data;
+  }
+
   try {
-    const url = `${MBB_API_BASE}/${token.trim()}`;
+    const url = `${MBB_API_BASE}/${currentToken}`;
     const res = await fetch(url, {
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
       },
-      signal: AbortSignal.timeout(12000)
+      signal: AbortSignal.timeout(9000)
     });
 
     if (!res.ok) {
-      console.error(`[MBBANK] Lỗi HTTP ${res.status} khi lấy lịch sử giao dịch`);
-      return [];
+      console.warn(`[MBBANK] Lỗi HTTP ${res.status} khi lấy lịch sử giao dịch`);
+      return mbbCache.data.length > 0 ? mbbCache.data : [];
     }
 
     const data = await res.json();
-    return Array.isArray(data.transactionInfos) ? data.transactionInfos : [];
+    const list = Array.isArray(data.transactionInfos) ? data.transactionInfos : [];
+    if (list.length > 0) {
+      mbbCache = {
+        data: list,
+        timestamp: now,
+        token: currentToken
+      };
+      return list;
+    }
+    return mbbCache.data.length > 0 ? mbbCache.data : [];
   } catch (err) {
-    console.error('[MBBANK] Lỗi kết nối API MBBank:', err.message);
-    return [];
+    console.warn('[MBBANK] Lỗi kết nối API MBBank:', err.message);
+    return mbbCache.data.length > 0 ? mbbCache.data : [];
   }
 }
 

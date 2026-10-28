@@ -61,6 +61,17 @@
       "badge": "KHUYÊN DÙNG",
       "active": true,
       "description": "Bảo hành trọn đời, tường lửa chống rụng vĩnh viễn"
+    },
+    "3m": {
+      "id": "3m",
+      "name": "Gói 3 Tháng",
+      "price": 25000,
+      "formattedPrice": "25.000đ",
+      "unit": "/3 tháng",
+      "badge": "HOT",
+      "days": 30,
+      "active": true,
+      "description": "Trải nghiệm toàn bộ tính năng VIP Locket Gold"
     }
   }
 }

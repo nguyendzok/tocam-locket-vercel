@@ -218,6 +218,43 @@ async function handleCheckPayment(req, res) {
 app.all(['/check-payment', '/api/check-payment'], handleCheckPayment);
 
 // ============================================================
+// 3.1. DANH SÁCH GIAO DỊCH THỰC TẾ GẦN ĐÂY TỪ MBBANK (Quét tự động mỗi 5s)
+// ============================================================
+app.get(['/api/recent-transactions', '/api/transactions/recent'], async (req, res) => {
+  try {
+    const settings = getSettings(true);
+    const allTxs = await fetchMbbankHistory(settings.mbbankToken);
+
+    // Lọc các giao dịch tiền vào (CRDT)
+    const creditTxs = allTxs
+      .filter(tx => tx.creditDebitIndicator === 'CRDT')
+      .slice(0, 25)
+      .map(tx => {
+        const desc = tx.description || '';
+        let extractedUser = 'VIP';
+        const match = desc.match(/(?:locket|tocam|gold|vip)?\s*@?([a-zA-Z0-9_.]{3,24})/i);
+        if (match && match[1] && !['locket', 'tocam', 'gold', 'vip', 'bank', 'chuyen', 'tien'].includes(match[1].toLowerCase())) {
+          extractedUser = match[1];
+        }
+
+        return {
+          id: tx.id || tx.reference || String(Date.now()),
+          amount: parseInt(tx.amount || '0', 10),
+          description: desc,
+          date: tx.bookingDate || tx.valueDate || new Date().toISOString(),
+          username: extractedUser,
+          status: 'SUCCESS'
+        };
+      });
+
+    res.json({ ok: true, data: creditTxs });
+  } catch (err) {
+    console.warn('[RECENT-TXS] Lỗi lấy giao dịch:', err.message);
+    res.json({ ok: true, data: [] });
+  }
+});
+
+// ============================================================
 // 4. KÍCH HOẠT LOCKET GOLD & TẠO CẤU HÌNH DNS TỐI ƯU
 // ============================================================
 app.post('/api/activate', async (req, res) => {

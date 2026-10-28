@@ -796,32 +796,44 @@ function markPaymentSuccessAndProceed(data) {
 
 // ============================================
 // POLLING KIỂM TRA THANH TOÁN TỰ ĐỘNG
-// Hỏi backend mỗi 2 giây khi đang ở bước 2, gửi kèm timestamp phiên thanh toán
+// Tự động quét ngân hàng mỗi đúng 5 giây khi đang ở bước 2
 // ============================================
+async function queryPaymentStatusOnce() {
+  if (!currentUsername || isPaymentTransitioning || isPaymentVerified) return;
+  try {
+    const amt = selectedPlan?.price || 0;
+    const res = await fetch(`${BACKEND_URL}/check-payment?username=${encodeURIComponent(currentUsername)}&amount=${amt}&since=${paymentSessionStartTime}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (data.paid) {
+      console.log('[POLLING 5S] ✅ Đã phát hiện thanh toán thành công! Locket status:', data.locketStatus);
+      markPaymentSuccessAndProceed(data);
+    } else if (data.consumed) {
+      console.log('[POLLING 5S] Giao dịch trước đã hoàn tất kích hoạt. Chờ chuyển khoản mới để gia hạn...');
+    }
+  } catch (e) {
+    console.warn('[POLLING 5S] Lỗi kết nối máy chủ quét bank:', e.message);
+  }
+}
+
 function startPaymentPolling() {
   stopPaymentPolling();
   if (!currentUsername) return;
 
-  console.log('[POLLING] Bắt đầu kiểm tra thanh toán cho @' + currentUsername + ' (since: ' + paymentSessionStartTime + ')');
+  console.log('[POLLING 5S] Bắt đầu tự động quét bank mỗi đúng 5 giây cho @' + currentUsername + ' (since: ' + paymentSessionStartTime + ')');
 
+  // 1. Quét ngay lập tức lần đầu (0s) không phải chờ
+  queryPaymentStatusOnce();
+
+  // 2. Thiết lập chu kỳ tự động quét định kỳ mỗi đúng 5 giây (5000ms)
   paymentPollInterval = setInterval(async () => {
-    try {
-      const amt = selectedPlan?.price || 0;
-      const res = await fetch(`${BACKEND_URL}/check-payment?username=${encodeURIComponent(currentUsername)}&amount=${amt}&since=${paymentSessionStartTime}`);
-      if (!res.ok) return;
-      const data = await res.json();
-
-      if (data.paid) {
-        console.log('[POLLING] ✅ Đã thanh toán! Locket status:', data.locketStatus);
-        markPaymentSuccessAndProceed(data);
-      } else if (data.consumed) {
-        console.log('[POLLING] Giao dịch trước đã hoàn tất kích hoạt. Chờ chuyển khoản mới để gia hạn...');
-      }
-    } catch (e) {
-      // Backend chưa sẵn hoặc offline - bỏ qua lỗi im lặng
-      console.warn('[POLLING] Backend không phản hồi:', e.message);
+    await queryPaymentStatusOnce();
+    // Đồng thời cập nhật bảng giao dịch gần đây mỗi 5s
+    if (typeof loadRecentTransactions === 'function') {
+      loadRecentTransactions();
     }
-  }, 2000);
+  }, 5000);
 }
 
 function stopPaymentPolling() {
@@ -1694,8 +1706,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initFromConfig();
   checkUrlPlanParam();
   loadRecentTransactions();
-  // Tự động làm mới lịch sử mỗi 10 giây
-  setInterval(loadRecentTransactions, 10000);
+  // Tự động làm mới lịch sử mỗi 5 giây
+  setInterval(loadRecentTransactions, 5000);
 
   const uInput = document.getElementById('username-input');
   if (uInput) {
