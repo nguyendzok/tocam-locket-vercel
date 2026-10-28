@@ -2791,12 +2791,12 @@ function syncContactConfig() {
     el.innerText = TO_CAM_CONFIG.TELEGRAM_USERNAME;
   });
 
-  // Zalo
-  document.querySelectorAll('.cfg-zalo-link').forEach(el => {
-    el.href = TO_CAM_CONFIG.ZALO_URL;
+  // Facebook
+  document.querySelectorAll('.cfg-fb-link').forEach(el => {
+    el.href = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.FACEBOOK_URL) ? TO_CAM_CONFIG.FACEBOOK_URL : 'https://www.facebook.com/messages/t/nguyendzok';
   });
-  document.querySelectorAll('.cfg-zalo-phone').forEach(el => {
-    el.innerText = TO_CAM_CONFIG.ZALO_PHONE;
+  document.querySelectorAll('.cfg-fb-name').forEach(el => {
+    el.innerText = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.FACEBOOK_NAME) ? TO_CAM_CONFIG.FACEBOOK_NAME : 'Hỗ Trợ 24/7';
   });
 }
 

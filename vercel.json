@@ -10,12 +10,20 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/check-payment",
+      "destination": "/api/index.js"
+    },
+    {
       "source": "/health",
       "destination": "/api/index.js"
     },
     {
       "source": "/api/(.*)",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
     },
     {
       "source": "/gold",

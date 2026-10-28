@@ -314,10 +314,24 @@ function lookupUsername(onComplete) {
 
           const badgeWrap = preview.querySelector('div[style*="margin-left: auto"]');
           if (badgeWrap) {
-            badgeWrap.innerHTML = `
-              <span style="background:rgba(16,185,129,0.18);color:#10B981;border:1px solid rgba(16,185,129,0.45);padding:5px 12px;border-radius:999px;font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;gap:5px;">
-                <i class="fa-solid fa-circle-check"></i> Tài khoản Locket hợp lệ
-              </span>`;
+            if (isAccountGoldActive) {
+              const expText = d.expiresDate ? (d.expiresDate === 'LIFETIME' ? 'Vĩnh Viễn' : new Date(d.expiresDate).toLocaleDateString('vi-VN')) : 'Đang hoạt động';
+              badgeWrap.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px;">
+                  <span style="background:linear-gradient(135deg, #F59E0B, #D97706); color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(245,158,11,0.3);">
+                    <i class="fa-solid fa-crown"></i> LOCKET GOLD VIP
+                  </span>
+                  <small style="color:#10B981; font-size:11px; font-weight:700;">Hạn: ${expText}</small>
+                </div>`;
+            } else {
+              badgeWrap.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px;">
+                  <span style="background:rgba(148,163,184,0.15); color:#cbd5e1; border:1px solid rgba(148,163,184,0.3); padding:4px 10px; border-radius:999px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:5px;">
+                    <i class="fa-solid fa-lock-open"></i> LOCKET FREE
+                  </span>
+                  <small style="color:#38BDF8; font-size:11px; font-weight:700;">Sẵn sàng nâng cấp VIP</small>
+                </div>`;
+            }
           }
         }
         setUsernameError(false);
@@ -549,13 +563,20 @@ async function proceedToStep3() {
 function getSafePaymentMemo(u) {
   const raw = cleanLocketUsername(u) || 'VIP';
   const clean = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  return `TOCAM ${clean || 'VIP'}`;
+  return clean || 'VIP';
 }
 
 function updatePaymentInfo() {
   const amountEl = document.getElementById('pay-amount');
   const memoEl = document.getElementById('pay-memo');
   const qrImg = document.getElementById('vietqr-img');
+
+  const bankNameEl = document.getElementById('cfg-bank-name');
+  const accNoEl = document.getElementById('cfg-acc-number');
+  const accHolderEl = document.getElementById('cfg-acc-holder');
+  if (bankNameEl && typeof TO_CAM_CONFIG !== 'undefined') bankNameEl.innerText = TO_CAM_CONFIG.BANK_NAME || 'MBBank (Ngân hàng Quân Đội)';
+  if (accNoEl && typeof TO_CAM_CONFIG !== 'undefined') accNoEl.innerText = TO_CAM_CONFIG.ACCOUNT_NUMBER || '11223344557766';
+  if (accHolderEl && typeof TO_CAM_CONFIG !== 'undefined') accHolderEl.innerText = TO_CAM_CONFIG.ACCOUNT_HOLDER || 'HOANG NGOC NGUYEN';
 
   const memo = getSafePaymentMemo(currentUsername);
   if (amountEl) amountEl.innerText = selectedPlan.formattedPrice;
@@ -599,11 +620,12 @@ function updatePaymentInfo() {
     if (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.QR_IMAGE_PATH) {
       qrImg.src = TO_CAM_CONFIG.QR_IMAGE_PATH;
     } else {
-      const bankId = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.BANK_ID) ? TO_CAM_CONFIG.BANK_ID : 'VPB';
-      const accNo = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.ACCOUNT_NUMBER) ? TO_CAM_CONFIG.ACCOUNT_NUMBER : '643391953';
+      const bankId = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.BANK_ID) ? TO_CAM_CONFIG.BANK_ID : 'MB';
+      const accNo = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.ACCOUNT_NUMBER) ? TO_CAM_CONFIG.ACCOUNT_NUMBER : '11223344557766';
       const template = 'compact2';
       const amount = selectedPlan.price;
-      qrImg.src = `https://img.vietqr.io/image/${bankId}-${accNo}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent((typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.ACCOUNT_HOLDER) ? TO_CAM_CONFIG.ACCOUNT_HOLDER : 'NGUYEN MINH HIEP')}`;
+      const accHolder = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.ACCOUNT_HOLDER) ? TO_CAM_CONFIG.ACCOUNT_HOLDER : 'HOANG NGOC NGUYEN';
+      qrImg.src = `https://img.vietqr.io/image/${bankId}-${accNo}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(accHolder)}`;
     }
   }
 }
@@ -769,7 +791,8 @@ function startPaymentPolling() {
 
   paymentPollInterval = setInterval(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/check-payment?username=${encodeURIComponent(currentUsername)}&since=${paymentSessionStartTime}`);
+      const amt = selectedPlan?.price || 0;
+      const res = await fetch(`${BACKEND_URL}/check-payment?username=${encodeURIComponent(currentUsername)}&amount=${amt}&since=${paymentSessionStartTime}`);
       if (!res.ok) return;
       const data = await res.json();
 
@@ -804,7 +827,8 @@ async function confirmPaymentAndProceed() {
   const userToQuery = currentUsername || 'VIP';
 
   try {
-    const res = await fetch(`${BACKEND_URL}/check-payment?username=${encodeURIComponent(userToQuery)}&since=${paymentSessionStartTime}`);
+    const amt = selectedPlan?.price || 0;
+    const res = await fetch(`${BACKEND_URL}/check-payment?username=${encodeURIComponent(userToQuery)}&amount=${amt}&since=${paymentSessionStartTime}`);
     if (res.ok) {
       const data = await res.json();
       if (data.paid) {
@@ -1968,6 +1992,15 @@ function copyLookupDnsLink() {
   }
   const linkToCopy = currentLookupData.dnsDownloadUrl || `${BACKEND_URL}/api/locket/profile/download?username=${encodeURIComponent(currentLookupData.username)}&uid=${encodeURIComponent(currentLookupData.uid || '')}`;
   copyText(linkToCopy, 'Đã sao chép link cấu hình DNS! Mở Safari dán link để cài đặt.');
+}
+
+function copyLookupDotHost() {
+  if (!currentLookupData) {
+    alert('Không tìm thấy thông tin tài khoản.');
+    return;
+  }
+  const dotHost = currentLookupData.dotHost || `${currentLookupData.username}.dns.locketvip.online`;
+  copyText(dotHost, `Đã sao chép DoT Host cho Android:\n${dotHost}\n\nVào Cài đặt > Kết nối > DNS Riêng tư (Private DNS) > Dán host này vào!`);
 }
 
 // Bật/tắt box chọn gói gia hạn
