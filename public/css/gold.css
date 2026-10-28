@@ -921,15 +921,140 @@
   border: none;
 }
 
-/* Terminal Console Log */
+/* ============================================================
+   TERMINAL WINDOW THEO PHONG CÁCH LOCAL SYSTEM EXP_V2.5
+   ============================================================ */
+.terminal-window {
+  background: #060911;
+  border-radius: 18px;
+  overflow: hidden;
+  margin: 14px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+  text-align: left;
+}
+
+.terminal-bar {
+  background: rgba(255, 255, 255, 0.035);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.terminal-dots {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.terminal-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.terminal-dots .d1 { background: #ff5f56; }
+.terminal-dots .d2 { background: #ffbd2e; }
+.terminal-dots .d3 { background: #27c93f; }
+
+.terminal-title {
+  font-size: 10.5px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+}
+
+.terminal-body {
+  padding: 16px 18px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+  height: 200px;
+  max-height: 240px;
+  overflow-y: auto;
+  color: #cbd5e1;
+  background: transparent;
+}
+
+.terminal-body::-webkit-scrollbar {
+  width: 5px;
+}
+.terminal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+.log-entry {
+  margin-bottom: 7px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  word-break: break-word;
+  animation: logFadeIn 0.25s ease-out;
+}
+
+@keyframes logFadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.log-prefix {
+  color: #FFD700;
+  font-weight: 700;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.log-entry.success {
+  color: #10B981;
+}
+.log-entry.success .log-prefix {
+  color: #10B981;
+}
+
+.log-entry.error {
+  color: #EF4444;
+}
+.log-entry.error .log-prefix {
+  color: #EF4444;
+}
+
+.log-entry.gold {
+  color: #F59E0B;
+}
+
+/* Loading Bar */
+.terminal-loading-bar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.terminal-loading-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #F59E0B, #FFB703);
+  width: 0%;
+  transition: width 0.35s ease-out;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
+  border-radius: 99px;
+}
+
+/* Backward compatibility for terminal-card */
 .terminal-card {
   background: #06080e;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 12px 14px;
-  font-family: 'Space Grotesk', monospace;
+  font-family: 'JetBrains Mono', 'Space Grotesk', monospace;
   font-size: 12px;
-  height: 120px;
+  height: 140px;
   overflow-y: auto;
   margin-bottom: 16px;
   text-align: left;

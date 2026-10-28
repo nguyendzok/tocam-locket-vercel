@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Nunito:wght@600;700;800;900&family=Space+Grotesk:wght@600;700;800&display=swap&subset=vietnamese"
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Nunito:wght@600;700;800;900&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap&subset=vietnamese"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
@@ -596,11 +596,35 @@
         </a>
       </div>
 
-      <!-- Terminal Giả Lập Kích Hoạt -->
-      <div class="terminal-card" id="terminal-content">
-        <div class="terminal-line info">[SẴN SÀNG] Sẵn sàng kích hoạt Locket Gold...</div>
-        <div class="terminal-line gold">[HƯỚNG DẪN] 👉 Nhấn nút "Kích Hoạt Gold &amp; Nhận Cấu Hình DNS" bên dưới.</div>
+      <!-- Terminal Kích Hoạt Phong Cách Hacker / MacOS Giống Local -->
+      <div class="terminal-window">
+        <div class="terminal-bar">
+          <div class="terminal-dots">
+            <span class="d1"></span>
+            <span class="d2"></span>
+            <span class="d3"></span>
+          </div>
+          <span class="terminal-title">SYSTEM EXP_V2.5</span>
+        </div>
+        <div id="terminal-content" class="terminal-body">
+          <div class="log-entry">
+            <span class="log-prefix">[*]</span>
+            <span>Awaiting user activation request...</span>
+          </div>
+          <div class="log-entry">
+            <span class="log-prefix">[*]</span>
+            <span id="term-ready-text">System Exp_v2.5 Engine: READY. Click button below to activate!</span>
+          </div>
+        </div>
       </div>
+
+      <!-- Loading Bar giống Local -->
+      <div class="terminal-loading-bar" id="terminal-loading-bar" style="display: none;">
+        <div class="terminal-loading-fill" id="terminal-progress-fill"></div>
+      </div>
+      <p id="terminal-loading-desc" style="display: none; text-align: center; font-size: 12px; color: #94a3b8; margin: 10px 0 16px; font-family: 'Space Grotesk', sans-serif;">
+        Injecting Gold Entitlements... Keep app open.
+      </p>
 
       <button type="button" class="btn-primary-action" id="btn-activate-gold" onclick="checkActivation()">
         <i class="fa-solid fa-bolt"></i>
