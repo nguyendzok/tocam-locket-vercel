@@ -472,7 +472,30 @@ function goToStep(step) {
     updatePaymentInfo();
     loadRecentTransactions();
     startPaymentTimer();
-    startPaymentPolling(); // ← Bắt đầu polling tự động!
+
+    // NẾU LÀ GÓI 0Đ (MIỄN PHÍ/TEST): TỰ ĐỘNG CHUYỂN SANG BƯỚC 3 SAU ĐÚNG 2 GIÂY!
+    if (selectedPlan && (Number(selectedPlan.price) === 0 || selectedPlan.code === '5m')) {
+      console.log('[FREE PLAN 0D] Phát hiện gói 0đ. Tự động chuyển sang bước kích hoạt sau 2 giây...');
+      const currentTxBadge = document.getElementById('step2-current-tx-badge');
+      if (currentTxBadge) {
+        currentTxBadge.className = 'step2-tx-badge success';
+        currentTxBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Miễn phí (Chuyển sau 2s...)';
+      }
+      setTimeout(() => {
+        if (currentStep === 2) {
+          isPaymentVerified = true;
+          markPaymentSuccessAndProceed({
+            paid: true,
+            free: true,
+            locketStatus: 'ACTIVE',
+            plan: selectedPlan.code || '5m'
+          });
+        }
+      }, 2000);
+      return;
+    }
+
+    startPaymentPolling(); // ← Bắt đầu polling tự động cho các gói có phí!
   }
 
   // Dừng polling khi rời khỏi bước 2
@@ -845,6 +868,13 @@ function stopPaymentPolling() {
 
 // Người dùng chủ động bấm "Tôi Đã Chuyển Khoản — Nâng Cấp Ngay" ở Bước 2
 async function confirmPaymentAndProceed() {
+  // Nếu là gói 0đ: Cho qua ngay lập tức sang bước 3
+  if (selectedPlan && (Number(selectedPlan.price) === 0 || selectedPlan.code === '5m')) {
+    isPaymentVerified = true;
+    markPaymentSuccessAndProceed({ paid: true, free: true, locketStatus: 'ACTIVE', plan: selectedPlan.code || '5m' });
+    return;
+  }
+
   const btn = document.getElementById('btn-paid-proceed');
   if (btn) {
     btn.disabled = true;
@@ -1393,6 +1423,48 @@ function jumpToTxPage() {
 }
 window.jumpToTxPage = jumpToTxPage;
 
+// Xác định chuẩn xác tên gói, màu sắc và giá từ giao dịch thực tế
+function resolvePlanFromTx(tx) {
+  const plans = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.PLANS) ? TO_CAM_CONFIG.PLANS : {};
+  const amt = Number(tx.amount || 0);
+  const pCode = String(tx.plan || '').toLowerCase();
+
+  // 1. So khớp theo mã gói nếu có
+  for (const [key, p] of Object.entries(plans)) {
+    if (pCode === key.toLowerCase() || pCode === String(p.id).toLowerCase()) {
+      return {
+        name: p.name,
+        color: (key === 'lifetime' || p.price >= 95000) ? '#FFA033' : ((p.price === 0 || key === '5m') ? '#C084FC' : ((p.price >= 35000 && p.price <= 65000) ? '#10B981' : '#38BDF8')),
+        formattedPrice: p.formattedPrice || (p.price.toLocaleString('vi-VN') + 'đ')
+      };
+    }
+  }
+
+  // 2. So khớp chính xác theo giá tiền từ cấu hình Admin
+  for (const [key, p] of Object.entries(plans)) {
+    if (amt > 0 && p.price === amt) {
+      return {
+        name: p.name,
+        color: (key === 'lifetime' || p.price >= 95000) ? '#FFA033' : ((p.price === 0 || key === '5m') ? '#C084FC' : ((p.price >= 35000 && p.price <= 65000) ? '#10B981' : '#38BDF8')),
+        formattedPrice: p.formattedPrice || (amt.toLocaleString('vi-VN') + 'đ')
+      };
+    }
+  }
+
+  // 3. Phân loại chuẩn xác theo khoảng giá tiền giao dịch thực tế
+  if (amt === 0) {
+    return { name: 'Test 5 Phút', color: '#C084FC', formattedPrice: '0đ' };
+  } else if (amt <= 20000) {
+    return { name: 'Gói 1 Ngày', color: '#38BDF8', formattedPrice: amt.toLocaleString('vi-VN') + 'đ' };
+  } else if (amt <= 65000) {
+    return { name: 'Gói 6 Tháng', color: '#10B981', formattedPrice: amt.toLocaleString('vi-VN') + 'đ' };
+  } else if (amt <= 95000) {
+    return { name: 'Gói 1 Năm', color: '#38BDF8', formattedPrice: amt.toLocaleString('vi-VN') + 'đ' };
+  } else {
+    return { name: 'Gói Vĩnh Viễn', color: '#FFA033', formattedPrice: amt.toLocaleString('vi-VN') + 'đ' };
+  }
+}
+
 function renderRecentTxPage() {
   const container = document.getElementById('step2-recent-txs') || document.getElementById('tx-history-list');
   const paginationEl = document.getElementById('step2-tx-pagination');
@@ -1419,12 +1491,10 @@ function renderRecentTxPage() {
   const pageItems = allRecentTransactions.slice(startIndex, endIndex);
 
   container.innerHTML = pageItems.map((tx) => {
-    const isLifetime = tx.plan === 'LIFETIME';
-    const isTest = tx.plan === 'TEST';
-    const isMonth6 = tx.plan === 'MONTH6' || tx.plan === '6MONTH';
-    const planName = isLifetime ? 'Gói Vĩnh Viễn' : (isTest ? 'Gói Test 1 Ngày' : (isMonth6 ? 'Gói 6 Tháng' : 'Gói 1 Năm'));
-    const planColor = isLifetime ? '#FFA033' : (isTest ? '#C084FC' : (isMonth6 ? '#10B981' : '#38BDF8'));
-    const formattedAmount = Number(tx.amount || (isLifetime ? 99000 : (isTest ? 9000 : (isMonth6 ? 39000 : 69000)))).toLocaleString('vi-VN') + 'đ';
+    const planInfo = resolvePlanFromTx(tx);
+    const planName = planInfo.name;
+    const planColor = planInfo.color;
+    const formattedAmount = (tx.amount !== undefined && tx.amount !== null) ? Number(tx.amount).toLocaleString('vi-VN') + 'đ' : planInfo.formattedPrice;
     const timeStr = formatRelativeOrAbsoluteTime(tx.time);
 
     // Che 2 ký tự giữa của username để bảo mật thông tin khách hàng thật
@@ -1673,23 +1743,38 @@ function isYearlyPlan(str) {
   return s.includes('69') || s.includes('year') || s.includes('1y') || s.includes('1nam') || s.includes('nam') || s.includes('tietkiem');
 }
 
-// Đọc query parameter ?plan= từ URL khi load trang
+// Đọc query parameter ?plan= từ URL khi load trang theo đúng cấu hình gói động
 function checkUrlPlanParam() {
   const params = new URLSearchParams(window.location.search);
   const rawParam = params.get('plan') || params.get('package') || params.get('goi') || params.get('p') || localStorage.getItem('tocam_selected_plan') || '';
+  const plans = (typeof TO_CAM_CONFIG !== 'undefined' && TO_CAM_CONFIG.PLANS) ? TO_CAM_CONFIG.PLANS : {};
 
-  if (isTestPlan(rawParam)) {
-    const card = document.getElementById('plan-card-test') || document.querySelector('.plan-card[onclick*="TEST"]');
-    selectPlan(card, 'Gói Test (1 Ngày)', 9000, '9.000đ', 'TEST');
-  } else if (is6MonthPlan(rawParam)) {
-    const card = document.getElementById('plan-card-6month') || document.querySelector('.plan-card[onclick*="MONTH6"]');
-    selectPlan(card, 'Gói 6 Tháng', 39000, '39.000đ', 'MONTH6');
-  } else if (isYearlyPlan(rawParam)) {
-    const card = document.getElementById('plan-card-yearly') || document.querySelector('.plan-card[onclick*="YEARLY"]');
-    selectPlan(card, 'Gói 1 Năm', 69000, '69.000đ', 'YEARLY');
-  } else {
-    const card = document.getElementById('plan-card-lifetime') || document.querySelector('.plan-card[onclick*="LIFETIME"]');
-    selectPlan(card, 'Gói Vĩnh Viễn', 99000, '99.000đ', 'LIFETIME');
+  let targetPlan = null;
+  const pLower = String(rawParam).toLowerCase().trim();
+
+  if (pLower) {
+    if (plans[pLower]) {
+      targetPlan = plans[pLower];
+    } else if (pLower === '5m' || pLower === 'test5m' || pLower === 'free' || pLower === 'test') {
+      targetPlan = plans['5m'] || plans['1d'];
+    } else if (pLower === '1d' || pLower === 'day' || pLower === '1ngay') {
+      targetPlan = plans['1d'];
+    } else if (pLower.includes('6') || pLower.includes('month6')) {
+      targetPlan = plans['month6'];
+    } else if (pLower.includes('year') || pLower.includes('1nam')) {
+      targetPlan = plans['yearly'];
+    } else if (pLower.includes('life') || pLower.includes('vinhvien')) {
+      targetPlan = plans['lifetime'];
+    }
+  }
+
+  if (!targetPlan) {
+    targetPlan = plans['lifetime'] || Object.values(plans)[0];
+  }
+
+  if (targetPlan) {
+    const card = document.getElementById('plan-card-' + targetPlan.id);
+    selectPlan(card, targetPlan.name, targetPlan.price, targetPlan.formattedPrice || (targetPlan.price + 'đ'), targetPlan.id);
   }
 
   const urlUser = params.get('username') || params.get('user');
