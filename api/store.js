@@ -43,8 +43,8 @@ const DEFAULT_SETTINGS = {
     "1d": {
       id: "1d",
       name: "Gói 1 Ngày",
-      price: 9000,
-      formattedPrice: "9.000đ",
+      price: 5000,
+      formattedPrice: "5.000đ",
       unit: "/1 ngày",
       badge: "DÙNG THỬ",
       active: true,
@@ -53,8 +53,8 @@ const DEFAULT_SETTINGS = {
     "month6": {
       id: "month6",
       name: "Gói 6 Tháng",
-      price: 39000,
-      formattedPrice: "39.000đ",
+      price: 50000,
+      formattedPrice: "50.000đ",
       unit: "/6 tháng",
       badge: "PHỔ BIẾN",
       active: true,
@@ -63,8 +63,8 @@ const DEFAULT_SETTINGS = {
     "yearly": {
       id: "yearly",
       name: "Gói 1 Năm",
-      price: 69000,
-      formattedPrice: "69.000đ",
+      price: 85000,
+      formattedPrice: "85.000đ",
       unit: "/năm",
       badge: "TIẾT KIỆM",
       active: true,
@@ -73,8 +73,8 @@ const DEFAULT_SETTINGS = {
     "lifetime": {
       id: "lifetime",
       name: "Gói Vĩnh Viễn",
-      price: 99000,
-      formattedPrice: "99.000đ",
+      price: 120000,
+      formattedPrice: "120.000đ",
       unit: "/trọn đời",
       badge: "KHUYÊN DÙNG",
       active: true,

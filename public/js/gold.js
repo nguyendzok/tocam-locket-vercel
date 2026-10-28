@@ -1,8 +1,8 @@
 let currentStep = 1;
 let selectedPlan = {
   name: 'Gói Vĩnh Viễn',
-  price: 99000,
-  formattedPrice: '99.000đ',
+  price: 120000,
+  formattedPrice: '120.000đ',
   code: 'LIFETIME'
 };
 let currentUsername = '';
@@ -2102,21 +2102,25 @@ function renderLookupResult(user) {
         const timeStr = item.time ? new Date(item.time).toLocaleString('vi-VN') : 'Gần đây';
         let planText = 'Gói 1 Năm';
         let planColor = '#38BDF8';
-        let amountText = '69.000đ';
-        if (item.plan === 'LIFETIME') {
+        let amountText = '85.000đ';
+        if (item.plan === 'LIFETIME' || item.plan === 'lifetime') {
           planText = 'Gói Vĩnh Viễn';
           planColor = '#FFA033';
-          amountText = '99.000đ';
-        } else if (item.plan === 'MONTH6' || item.plan === '6MONTH') {
+          amountText = '120.000đ';
+        } else if (item.plan === 'MONTH6' || item.plan === '6MONTH' || item.plan === 'month6') {
           planText = 'Gói 6 Tháng';
           planColor = '#10B981';
-          amountText = '39.000đ';
-        } else if (item.plan === 'TEST') {
-          planText = 'Gói Test (1 Ngày)';
+          amountText = '50.000đ';
+        } else if (item.plan === 'TEST' || item.plan === '1d') {
+          planText = 'Gói 1 Ngày';
           planColor = '#C084FC';
-          amountText = '9.000đ';
+          amountText = '5.000đ';
+        } else if (item.plan === '5m') {
+          planText = 'Test 5 Phút';
+          planColor = '#EC4899';
+          amountText = '0đ';
         } else {
-          amountText = item.amount ? Number(item.amount).toLocaleString('vi-VN') + 'đ' : '69.000đ';
+          amountText = item.amount ? Number(item.amount).toLocaleString('vi-VN') + 'đ' : '85.000đ';
         }
         return `
           <tr>
@@ -2128,8 +2132,8 @@ function renderLookupResult(user) {
         `;
       }).join('');
     } else {
-      const defaultPlanText = isLifetime ? 'Gói Vĩnh Viễn' : (user.currentPlan === 'TEST' ? 'Gói Test (1 Ngày)' : 'Gói 1 Năm');
-      const defaultAmount = isLifetime ? '99.000đ' : (user.currentPlan === 'TEST' ? '9.000đ' : '69.000đ');
+      const defaultPlanText = isLifetime ? 'Gói Vĩnh Viễn' : (user.currentPlan === 'TEST' || user.currentPlan === '1d' ? 'Gói 1 Ngày' : 'Gói 1 Năm');
+      const defaultAmount = isLifetime ? '120.000đ' : (user.currentPlan === 'TEST' || user.currentPlan === '1d' ? '5.000đ' : '85.000đ');
       tbody.innerHTML = `
         <tr>
           <td style="color:#94A3B8;">Gần đây</td>
@@ -2204,14 +2208,14 @@ function executeRenewPlan(planCode) {
   currentUsername = username;
 
   // 2. Chọn đúng gói gia hạn mà khách đã bấm
-  if (planCode === 'TEST') {
-    selectPlan(null, 'Gói Test (1 Ngày)', 9000, '9.000đ', 'TEST');
-  } else if (planCode === 'MONTH6' || planCode === '6MONTH') {
-    selectPlan(null, 'Gói 6 Tháng', 39000, '39.000đ', 'MONTH6');
-  } else if (planCode === 'YEARLY') {
-    selectPlan(null, 'Gói 1 Năm', 69000, '69.000đ', 'YEARLY');
+  if (planCode === 'TEST' || planCode === '1d') {
+    selectPlan(null, 'Gói 1 Ngày', 5000, '5.000đ', '1d');
+  } else if (planCode === 'MONTH6' || planCode === '6MONTH' || planCode === 'month6') {
+    selectPlan(null, 'Gói 6 Tháng', 50000, '50.000đ', 'month6');
+  } else if (planCode === 'YEARLY' || planCode === 'yearly') {
+    selectPlan(null, 'Gói 1 Năm', 85000, '85.000đ', 'yearly');
   } else {
-    selectPlan(null, 'Gói Vĩnh Viễn', 99000, '99.000đ', 'LIFETIME');
+    selectPlan(null, 'Gói Vĩnh Viễn', 120000, '120.000đ', 'lifetime');
   }
 
   // 3. Đặt lại cờ thanh toán và reset session timestamp để bảo mật
